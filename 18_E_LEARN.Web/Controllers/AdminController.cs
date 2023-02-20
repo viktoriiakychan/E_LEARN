@@ -2,9 +2,8 @@
 using _18_E_LEARN.DataAccess.Data.Context;
 using _18_E_LEARN.DataAccess.Data.Models.Categories;
 using _18_E_LEARN.DataAccess.Data.Models.User;
-using _18_E_LEARN.DataAccess.Data.ViewModels.Category;
 using _18_E_LEARN.DataAccess.Data.ViewModels.User;
-using _18_E_LEARN.DataAccess.Validation.Category;
+using _18_E_LEARN.DataAccess.Validation.Categories;
 using _18_E_LEARN.DataAccess.Validation.User;
 using AutoMapper;
 using FluentValidation;
@@ -20,10 +19,10 @@ namespace _18_E_LEARN.Web.Controllers
     [Authorize]
     public class AdminController : Controller
     {
+        private readonly IMapper _mapper;
         private readonly UserService _userService;
         private readonly CategoryService _categoryService;
-        private readonly IMapper _mapper;
-        private AppDbContext context = new AppDbContext();
+
         public AdminController(UserService userService, IMapper mapper, CategoryService categoryService)
         {
             _userService = userService;
@@ -47,12 +46,8 @@ namespace _18_E_LEARN.Web.Controllers
         }
         public async Task<IActionResult> Categories()
         {
-            var category = await _categoryService.GetAllCategories();
-            if (category.Success)
-            {
-                return View(category.Payload);
-            }
-            return View();
+            var result = await _categoryService.GetAllAsync();
+            return View(result.Payload);
         }
 
         public async Task<IActionResult> Profile()
@@ -70,7 +65,7 @@ namespace _18_E_LEARN.Web.Controllers
         public IActionResult SignIn()
         {
             var user = HttpContext.User.Identity.IsAuthenticated;
-            if(user)
+            if (user)
             {
                 return RedirectToAction("Index", "Home");
             }
@@ -216,9 +211,9 @@ namespace _18_E_LEARN.Web.Controllers
             return View(model);
         }
 
-        public async Task<IActionResult> EditCategory(string id)
+        public async Task<IActionResult> EditCategory(int id)
         {
-            var result = await _userService.GetUserIdForEditingAsync(id);
+            var result = await _categoryService.GetByIdAsync(id);
             if (result.Success)
             {
                 return View(result.Payload);
@@ -226,19 +221,45 @@ namespace _18_E_LEARN.Web.Controllers
             return View();
         }
         [HttpPost]
-        public async Task<IActionResult> EditCategory(CategoryVM model)
+        public async Task<IActionResult> EditCategory(Category model)
         {
             var validator = new EditCategoryValidation();
             var validationResult = await validator.ValidateAsync(model);
             if (validationResult.IsValid)
             {
-                var categoty = _mapper.Map<CategoryVM,Category>(model);
-                context.Categories.Update(categoty);
-
-                return RedirectToAction("Users", "Admin");
-                //ViewBag.AuthError = result.Message;
+                _categoryService.EditCategoryAsync(model);
+                return RedirectToAction("Categories", "Admin");
             }
             return View(model);
         }
+        [HttpPost]
+        public async Task<IActionResult> DeleteCategory(Category model)
+        {
+            _categoryService.DeleteIdAsync(model.Id);
+            return RedirectToAction("Categories", "Admin");
+
+        }
+        public async Task<IActionResult> AddCategory(int id)
+        {
+            var result = await _categoryService.GetByIdAsync(id);
+            if (result.Success)
+            {
+                return View(result.Payload);
+            }
+            return View();
+        }
+        [HttpPost]
+        public async Task<IActionResult> AddCategory(Category model)
+        {
+            var validator = new EditCategoryValidation();
+            var validationResult = await validator.ValidateAsync(model);
+            if (validationResult.IsValid)
+            {
+                _categoryService.AddCategoryAsync(model);
+                return RedirectToAction("Categories", "Admin");
+            }
+            return View(model);
+        }
+
     }
 }
